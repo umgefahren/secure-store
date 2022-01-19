@@ -12,6 +12,7 @@ type MetadataStore interface {
 type Metadata struct {
 	Length   int64
 	Filename string
+	Key      []byte
 }
 
 func NewMetadata(length int64, filename string) *Metadata {

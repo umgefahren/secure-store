@@ -47,13 +47,13 @@ func (s *SecureClient) Upload(bucketId, keyId string, data io.Reader, filename s
 	return nil
 }
 
-func (s *SecureClient) Download(bucketId, keyId string) (io.Reader, error) {
+func (s *SecureClient) Download(bucketId, keyId string) (io.Reader, int64, error) {
 	complete := fmt.Sprintf("%v/download?bucketId=%v&keyId=%v", s.addr, bucketId, keyId)
 	resp, err := http.Get(complete)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return resp.Body, nil
+	return resp.Body, resp.ContentLength, nil
 }
 
 func (s *SecureClient) Delete(bucketId, keyId string) error {

@@ -6,19 +6,15 @@ import (
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"secure-store/metadata"
-	"secure-store/storage"
+	"secure-store/security"
 )
 
-func NewRouter(s storage.Storage, m metadata.MetadataStore) *gin.Engine {
+func NewRouter(s *CompoundStore) *gin.Engine {
 	router := gin.Default()
 
 	router.GET("/new-bucket", func(c *gin.Context) {
 		bucketId := c.Query("bucketId")
 		err := s.NewBucket(bucketId)
-		if err != nil {
-			_ = c.AbortWithError(http.StatusInternalServerError, err)
-		}
-		err = m.NewBucket(bucketId)
 		if err != nil {
 			_ = c.AbortWithError(http.StatusInternalServerError, err)
 		}
@@ -32,12 +28,9 @@ func NewRouter(s storage.Storage, m metadata.MetadataStore) *gin.Engine {
 		filename := c.Request.Header.Get("filename")
 		contentLength := c.Request.ContentLength
 		bufferedReader := bufio.NewReader(r)
-		err := s.Write(bucketId, keyId, bufferedReader)
-		if err != nil {
-			_ = c.AbortWithError(http.StatusInternalServerError, err)
-		}
 		meta := metadata.NewMetadata(contentLength, filename)
-		err = m.Write(bucketId, keyId, meta)
+		key := security.NewEncryptionKey()
+		err := s.Write(bucketId, keyId, meta, key, bufferedReader)
 		if err != nil {
 			_ = c.AbortWithError(http.StatusInternalServerError, err)
 		}
@@ -47,11 +40,7 @@ func NewRouter(s storage.Storage, m metadata.MetadataStore) *gin.Engine {
 	router.GET("/download", func(c *gin.Context) {
 		bucketId := c.Query("bucketId")
 		keyId := c.Query("keyId")
-		bufReader, err := s.Read(bucketId, keyId)
-		if err != nil {
-			_ = c.AbortWithError(http.StatusInternalServerError, err)
-		}
-		meta, err := m.Read(bucketId, keyId)
+		meta, bufReader, err := s.Read(bucketId, keyId)
 		if err != nil {
 			_ = c.AbortWithError(http.StatusInternalServerError, err)
 		}
@@ -70,20 +59,12 @@ func NewRouter(s storage.Storage, m metadata.MetadataStore) *gin.Engine {
 		if err != nil {
 			_ = c.AbortWithError(http.StatusInternalServerError, err)
 		}
-		err = m.Delete(bucketId, keyId)
-		if err != nil {
-			_ = c.AbortWithError(http.StatusInternalServerError, err)
-		}
 		c.String(http.StatusOK, "Deleted with buket-id: %v and key-id: %v", bucketId, keyId)
 	})
 
 	router.DELETE("/delete-bucket", func(c *gin.Context) {
 		bucketId := c.Query("bucketId")
 		err := s.DeleteBucket(bucketId)
-		if err != nil {
-			_ = c.AbortWithError(http.StatusInternalServerError, err)
-		}
-		err = m.DeleteBucket(bucketId)
 		if err != nil {
 			_ = c.AbortWithError(http.StatusInternalServerError, err)
 		}

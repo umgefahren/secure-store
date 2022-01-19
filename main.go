@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"secure-store/metadata"
+	"secure-store/security"
 	"secure-store/storage"
 	"strings"
 )
@@ -18,7 +19,13 @@ func main() {
 
 	s := storage.New()
 	m := metadata.NewMemoryStore()
-	r := NewRouter(s, m)
+	sec := security.NewMemorySecurityStore()
+	compound := CompoundStore{
+		metadata: m,
+		security: sec,
+		storage:  s,
+	}
+	r := NewRouter(&compound)
 
 	domainsString := os.Getenv("DOMAINS")
 	if domainsString == "" {
