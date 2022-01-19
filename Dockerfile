@@ -2,7 +2,7 @@ FROM golang:alpine AS builder
 WORKDIR /go/src/app
 COPY . .
 
-RUN go get -d ./...
+RUN go get -d -cpu qemu,vx=off ./...
 RUN go build
 
 FROM alpine:latest
