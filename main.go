@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/gin-gonic/autotls"
+	"github.com/google/uuid"
 	"log"
 	"os"
 	"secure-store/metadata"
@@ -17,7 +18,15 @@ func main() {
 		port = "8080"
 	}
 
-	s := storage.New()
+	dataDir := os.Getenv("DATADIR")
+	if dataDir == "" {
+		dataDir = os.TempDir() + "data/" + uuid.NewString()
+	}
+
+	s, err := storage.NewFsStorage(dataDir)
+	if err != nil {
+		log.Fatal(err)
+	}
 	m := metadata.NewMemoryStore()
 	sec := security.NewMemorySecurityStore()
 	compound := CompoundStore{

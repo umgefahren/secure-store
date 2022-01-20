@@ -20,7 +20,8 @@ func main() {
 			StartInSearchMode: true,
 			Searcher: func(input string, idx int) bool {
 				val := items[idx]
-				return strings.Contains(val, input)
+
+				return strings.Contains(strings.ToLower(val), strings.ToLower(input))
 			},
 			Items: items,
 		}

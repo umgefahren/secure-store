@@ -57,6 +57,7 @@ func (m *MemoryStore) Delete(bucket, key string) error {
 			return storage.ObjectDoesNotExists(key)
 		}
 		delete(bucketMap, key)
+		m.i[bucket] = bucketMap
 		return nil
 	}
 	return storage.BucketDoesNotExist(bucket)
@@ -77,7 +78,7 @@ func (m *MemoryStore) ListBuckets() ([]string, error) {
 	m.m.Lock()
 	defer m.m.Unlock()
 	ret := make([]string, 0)
-	for s, _ := range m.i {
+	for s := range m.i {
 		ret = append(ret, s)
 	}
 	return ret, nil
