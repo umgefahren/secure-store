@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -93,6 +94,12 @@ func NewRouter(s *CompoundStore, a access.AccessStore) *gin.Engine {
 			_ = c.AbortWithError(http.StatusBadRequest, err)
 			return
 		}
+	})
+
+	router.GET("/api/access", func(c *gin.Context) {
+		ctx, _ := context.WithDeadline(context.TODO(), time.Now().Add(100*time.Second))
+		urlKey := c.Query("urlKey")
+		_, _, _ = a.Access(ctx, urlKey)
 	})
 
 	router.GET("/teapot", func(c *gin.Context) {

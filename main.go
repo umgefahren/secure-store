@@ -14,6 +14,11 @@ import (
 )
 
 func main() {
+	fmt.Println("Welcome to Secure-Store v0.0.1 👋")
+	fmt.Println("I will keep your files secure and accessible 🔒")
+	fmt.Println(" ❌  Don't use this software in production!! ❌  ")
+	fmt.Println("@umgefahren")
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
