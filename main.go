@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"log"
 	"os"
+	"secure-store/access"
 	"secure-store/metadata"
 	"secure-store/security"
 	"secure-store/storage"
@@ -34,7 +35,8 @@ func main() {
 		security: sec,
 		storage:  s,
 	}
-	r := NewRouter(&compound)
+	a := access.NewMemoryStore()
+	r := NewRouter(&compound, a)
 
 	domainsString := os.Getenv("DOMAINS")
 	if domainsString == "" {

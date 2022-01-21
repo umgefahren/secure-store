@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>{{ .title }}</title>
+    <style>
+        .head {
+            color: rgb(2 132 199);
+            text-align: center;
+            font-family: Monaco, monospace;
+        }
+        .head-container {
+            background-color: #a3e635;
+            border-radius: 1rem;
+            margin: 10rem 10rem 2rem;
+            padding: 3rem;
+            box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+        }
+        .stats-container {
+            margin-left: 5vh;
+            margin-right: 5vh;
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 1rem;
+        }
+        .card {
+            font-family: Monaco, monospace;
+            background-color: royalblue;
+            border-radius: 1rem;
+            padding: 1rem;
+            filter: drop-shadow(0 10px 8px rgb(0 0 0 / 0.04)) drop-shadow(0 4px 3px rgb(0 0 0 / 0.1));
+        }
+        .card-header {
+            font-size: 1.25rem;
+            line-height: 1.75rem;
+        }
+        .card-content {
+            font-size: 0.75rem;
+            line-height: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+<div class="head-container">
+    <h1 class="head">
+        {{ .title }}
+    </h1>
+</div>
+<div class="stats-container">
+    <div class="card">
+        <h1 class="card-header">Your IP address:</h1>
+        <h2>{{ .ipAddress }}</h2>
+    </div>
+    <div class="card">
+        <h1 class="card-header">Time:</h1>
+        <h2 class="card-content">{{ .time }}</h2>
+    </div>
+    <div class="card">
+        <h1 class="card-header">Routes:</h1>
+        <div class="card-content">
+            {{range .Routes}}<div>{{ . }}</div>{{end}}
+        </div>
+    </div>
+    <div class="card">
+        <h1 class="card-header">Why?</h1>
+        <h2 class="card-content">
+            It's a joke, and I like it why I included it here.
+            <ul>
+                <li><a href="https://en.wikipedia.org/wiki/Hyper_Text_Coffee_Pot_Control_Protocol">Wikipedia</a></li>
+                <li><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/418">Mozilla MDN Docs</a></li>
+            </ul>
+            I can't believe you don't know this joke...
+        </h2>
+    </div>
+</div>
+</body>
+</html>
