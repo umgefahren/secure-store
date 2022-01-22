@@ -14,12 +14,19 @@ import (
 )
 
 func NewRouter(s *CompoundStore, a access.AccessStore) *gin.Engine {
+	matcher := NewMatcher()
+
 	router := gin.Default()
 
 	router.LoadHTMLGlob("templates/*")
 
 	router.GET("/new-bucket", func(c *gin.Context) {
 		bucketId := c.Query("bucketId")
+		matchRes := matcher.MatchString(bucketId)
+		if !matchRes {
+			_ = c.AbortWithError(http.StatusBadRequest, BucketIdMatchingError())
+			return
+		}
 		err := s.NewBucket(bucketId)
 		if err != nil {
 			_ = c.AbortWithError(http.StatusInternalServerError, err)
@@ -30,7 +37,17 @@ func NewRouter(s *CompoundStore, a access.AccessStore) *gin.Engine {
 
 	router.POST("/upload", func(c *gin.Context) {
 		bucketId := c.Query("bucketId")
+		matchRes := matcher.MatchString(bucketId)
+		if !matchRes {
+			_ = c.AbortWithError(http.StatusBadRequest, BucketIdMatchingError())
+			return
+		}
 		keyId := c.Query("keyId")
+		matchRes = matcher.MatchString(keyId)
+		if !matchRes {
+			_ = c.AbortWithError(http.StatusBadRequest, KeyIdMatchingError())
+			return
+		}
 		r := c.Request.Body
 		filename := c.Request.Header.Get("filename")
 		contentLength := c.Request.ContentLength
@@ -47,7 +64,17 @@ func NewRouter(s *CompoundStore, a access.AccessStore) *gin.Engine {
 
 	router.GET("/download", func(c *gin.Context) {
 		bucketId := c.Query("bucketId")
+		matchRes := matcher.MatchString(bucketId)
+		if !matchRes {
+			_ = c.AbortWithError(http.StatusBadRequest, BucketIdMatchingError())
+			return
+		}
 		keyId := c.Query("keyId")
+		matchRes = matcher.MatchString(keyId)
+		if !matchRes {
+			_ = c.AbortWithError(http.StatusBadRequest, KeyIdMatchingError())
+			return
+		}
 		meta, bufReader, err := s.Read(bucketId, keyId)
 		if err != nil {
 			_ = c.AbortWithError(http.StatusInternalServerError, err)
@@ -63,7 +90,17 @@ func NewRouter(s *CompoundStore, a access.AccessStore) *gin.Engine {
 
 	router.DELETE("/delete", func(c *gin.Context) {
 		bucketId := c.Query("bucketId")
+		matchRes := matcher.MatchString(bucketId)
+		if !matchRes {
+			_ = c.AbortWithError(http.StatusBadRequest, BucketIdMatchingError())
+			return
+		}
 		keyId := c.Query("keyId")
+		matchRes = matcher.MatchString(keyId)
+		if !matchRes {
+			_ = c.AbortWithError(http.StatusBadRequest, KeyIdMatchingError())
+			return
+		}
 		err := s.Delete(bucketId, keyId)
 		if err != nil {
 			_ = c.AbortWithError(http.StatusInternalServerError, err)
@@ -74,6 +111,11 @@ func NewRouter(s *CompoundStore, a access.AccessStore) *gin.Engine {
 
 	router.DELETE("/delete-bucket", func(c *gin.Context) {
 		bucketId := c.Query("bucketId")
+		matchRes := matcher.MatchString(bucketId)
+		if !matchRes {
+			_ = c.AbortWithError(http.StatusBadRequest, BucketIdMatchingError())
+			return
+		}
 		err := s.DeleteBucket(bucketId)
 		if err != nil {
 			_ = c.AbortWithError(http.StatusInternalServerError, err)
@@ -97,9 +139,16 @@ func NewRouter(s *CompoundStore, a access.AccessStore) *gin.Engine {
 	})
 
 	router.GET("/api/access", func(c *gin.Context) {
-		ctx, _ := context.WithDeadline(context.TODO(), time.Now().Add(100*time.Second))
+		ctx, cancel := context.WithDeadline(context.TODO(), time.Now().Add(100*time.Second))
+		defer cancel()
 		urlKey := c.Query("urlKey")
+		matchRes := matcher.MatchString(urlKey)
+		if !matchRes {
+			_ = c.AbortWithError(http.StatusBadRequest, UrlKeyMatchingError())
+			return
+		}
 		_, _, _ = a.Access(ctx, urlKey)
+
 	})
 
 	router.GET("/teapot", func(c *gin.Context) {

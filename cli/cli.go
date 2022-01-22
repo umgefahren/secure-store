@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	c := client.NewClient("http://68.183.213.89:8080")
+	c := client.NewClient("http://localhost:8080")
 	items := []string{"Create Bucket", "Read", "Write", "Delete", "DeleteBucket", "Exit"}
 	for {
 		prompt := promptui.Select{
