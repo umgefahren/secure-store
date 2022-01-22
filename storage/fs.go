@@ -106,7 +106,6 @@ func (f *FsStorage) NewBucket(bucket string) error {
 	}
 	f.memRep[bucket] = newHashSet()
 	bucketRootDir := f.GetRootBucket(bucket)
-	log.Printf("Creating bucket dir @ %v", bucketRootDir)
 	err := os.Mkdir(bucketRootDir, 0777)
 	if err != nil {
 		return err
