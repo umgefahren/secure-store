@@ -1,11 +1,11 @@
-FROM golang:alpine AS builder
+FROM golang:latest AS builder
 WORKDIR /go/src/app
 COPY . .
 
 RUN go get -d ./...
 RUN go build
 
-FROM alpine:latest
+FROM ubuntu:latest
 
 COPY --from=builder /go/src/app/secure-store /usr/local/bin/secure-store
 ENV GIN_MODE=release
