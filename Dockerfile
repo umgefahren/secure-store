@@ -2,6 +2,8 @@ FROM golang:latest AS builder
 WORKDIR /go/src/app
 COPY . .
 
+RUN apt-get update
+RUN apt-get install -y build-essential libsqlite3-dev
 RUN go get -d ./...
 RUN go build
 
