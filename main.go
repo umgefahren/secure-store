@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/gin-gonic/autotls"
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
+	"gorm.io/driver/sqlite"
 	"log"
 	"os"
 	"secure-store/access"
@@ -24,11 +26,14 @@ func main() {
 		port = "8080"
 	}
 
+	logrus.WithField("port", port).Info("Starting server with port parameter")
+
 	dataDir := os.Getenv("DATADIR")
 	if dataDir == "" {
 		dataDir = os.TempDir() + "data/" + uuid.NewString()
 	}
 
+	logrus.WithField("Data Directory", dataDir).Info("Starting server with data directory paramter")
 	s, err := storage.NewFsStorage(dataDir)
 	if err != nil {
 		log.Fatal(err)
@@ -40,7 +45,11 @@ func main() {
 		security: sec,
 		storage:  s,
 	}
-	a := access.NewMemoryStore()
+	db := sqlite.Open("test.db")
+	a, err := access.NewSQLStore(db)
+	if err != nil {
+		log.Fatal(err)
+	}
 	r := NewRouter(&compound, a)
 
 	domainsString := os.Getenv("DOMAINS")

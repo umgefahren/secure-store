@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"secure-store/access"
+	"strings"
 	"time"
 )
 
@@ -31,6 +32,26 @@ func (s *SecureClient) CreateBucket(bucketId string) error {
 	}
 	if resp.StatusCode != http.StatusOK {
 		return errors.New("server returned unexpected status code")
+	}
+	return nil
+}
+
+func (s *SecureClient) Ping() error {
+	complete := fmt.Sprintf("%v/ping", s.addr)
+	resp, err := http.Get(complete)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return errors.New("returned unexpected response")
+	}
+	bodyString := new(strings.Builder)
+	_, err = io.Copy(bodyString, resp.Body)
+	if err != nil {
+		return err
+	}
+	if bodyString.String() != "Pong" {
+		return errors.New("server didn't responded with pong")
 	}
 	return nil
 }

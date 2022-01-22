@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"io"
-	"log"
 	"os"
 	"sync"
 )
@@ -57,7 +57,7 @@ func NewFsStorage(root string) (*FsStorage, error) {
 		secureStoreFileExists := false
 		entrys, err := os.ReadDir(root)
 		if err != nil {
-			log.Printf("Error while listing directory %v", err)
+			logrus.Errorf("Error while listing directory %v", err)
 			return nil, err
 		}
 		for _, entry := range entrys {
@@ -76,7 +76,7 @@ func NewFsStorage(root string) (*FsStorage, error) {
 	}
 	file, err := os.Create(fmt.Sprintf("%v/%v", root, secureStoreJsonName))
 	if err != nil {
-		log.Printf("Error while creating .secure-store.json %v", err)
+		logrus.Errorf("Error while creating .secure-store.json %v", err)
 		return nil, err
 	}
 	err = file.Close()
@@ -135,6 +135,9 @@ func (f *FsStorage) Write(bucket, key string, data io.Reader) error {
 	if err != nil {
 		return err
 	}
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -187,6 +190,9 @@ func (f *FsStorage) DeleteBucket(bucket string) error {
 	}
 	err := os.RemoveAll(f.GetRootBucket(bucket))
 	delete(f.memRep, bucket)
+	logrus.WithFields(logrus.Fields{
+		"Bucket Id": bucket,
+	}).Infof("Deleting bucket")
 	return err
 }
 

@@ -7,7 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"log"
+	rainbow "github.com/guineveresaenger/golang-rainbow"
+	"github.com/sirupsen/logrus"
 	"net/http"
 	"os"
 	"secure-store/access"
@@ -35,17 +36,24 @@ func Download(ctx *gin.Context, s *CompoundStore, bucketId, keyId string) {
 		"Content-Disposition": fmt.Sprintf(`attachment; filename="%v"`, meta.Filename),
 	}
 	ctx.DataFromReader(http.StatusOK, contentLength, contentType, bufReader, extraHeaders)
+	logrus.WithFields(logrus.Fields{
+		"Bucket Id":      bucketId,
+		"Key Id":         keyId,
+		"Content Length": contentLength,
+		"Filename":       meta.Filename,
+	}).Infoln("Successfully downloaded.")
 }
 
 func NewRouter(s *CompoundStore, a access.AccessStore) *gin.Engine {
 	matcher := NewMatcher()
 
-	router := gin.Default()
-
+	router := gin.New()
+	// router.Use(ginlogrus.Logger(logrus.New()), gin.Recovery())
+	router.Use(gin.Recovery(), gin.Logger())
 	isInDebugMode := os.Getenv(gin.EnvGinMode) == "" || strings.ToLower(os.Getenv(gin.EnvGinMode)) == gin.DebugMode
 
 	if isInDebugMode {
-		log.Println("Mode: Debug")
+		logrus.Infoln("Using Debug mode")
 	}
 
 	router.LoadHTMLGlob("templates/*")
@@ -60,9 +68,13 @@ func NewRouter(s *CompoundStore, a access.AccessStore) *gin.Engine {
 		err := s.NewBucket(bucketId)
 		if err != nil {
 			_ = c.AbortWithError(http.StatusInternalServerError, err)
+			logrus.WithError(err).Errorf("Error while creating a new bucket.")
 			return
 		}
 		c.String(http.StatusOK, "Created bucket with id: %v", bucketId)
+		logrus.WithFields(logrus.Fields{
+			"Bucket Id": bucketId,
+		}).Infoln("Successfully created a new bucket.")
 	})
 
 	router.POST("/upload", func(c *gin.Context) {
@@ -87,9 +99,16 @@ func NewRouter(s *CompoundStore, a access.AccessStore) *gin.Engine {
 		err := s.Write(bucketId, keyId, meta, key, bufferedReader)
 		if err != nil {
 			_ = c.AbortWithError(http.StatusInternalServerError, err)
+			logrus.WithError(err).Errorf("Error while writing data into storage.")
 			return
 		}
 		c.String(http.StatusOK, "Successfully uploaded to bucket-id: %v with key-id: %v", bucketId, keyId)
+		logrus.WithFields(logrus.Fields{
+			"Bucket Id":      bucketId,
+			"Key Id":         keyId,
+			"Filename":       filename,
+			"Content Length": contentLength,
+		}).Infoln("Successfully uploaded.")
 	})
 
 	router.GET("/download", func(c *gin.Context) {
@@ -124,9 +143,17 @@ func NewRouter(s *CompoundStore, a access.AccessStore) *gin.Engine {
 		err := s.Delete(bucketId, keyId)
 		if err != nil {
 			_ = c.AbortWithError(http.StatusInternalServerError, err)
+			logrus.WithError(err).WithFields(logrus.Fields{
+				"Bucket Id": bucketId,
+				"Key Id":    keyId,
+			}).Errorf("Error encountered during delete")
 			return
 		}
 		c.String(http.StatusOK, "Deleted with buket-id: %v and key-id: %v", bucketId, keyId)
+		logrus.WithFields(logrus.Fields{
+			"Bucket Id": bucketId,
+			"Key Id":    keyId,
+		}).Debugf("Successfully deleted object.")
 	})
 
 	router.DELETE("/delete-bucket", func(c *gin.Context) {
@@ -139,9 +166,13 @@ func NewRouter(s *CompoundStore, a access.AccessStore) *gin.Engine {
 		err := s.DeleteBucket(bucketId)
 		if err != nil {
 			_ = c.AbortWithError(http.StatusInternalServerError, err)
+			logrus.WithError(err).Errorf("During deletion of bucket.")
 			return
 		}
 		c.String(http.StatusOK, "Deleted bucket-id: %v", bucketId)
+		logrus.WithFields(logrus.Fields{
+			"Bucket Id": bucketId,
+		}).Debugf("Successfully deleted bucket.")
 	})
 
 	router.POST("/api/add", func(c *gin.Context) {
@@ -149,21 +180,25 @@ func NewRouter(s *CompoundStore, a access.AccessStore) *gin.Engine {
 		contentType := c.Request.Header.Get("Content-Type")
 		if contentType != "application/json" {
 			_ = c.AbortWithError(http.StatusBadRequest, errors.New("wrong content type given"))
+			logrus.WithError(errors.New("wrong content type given")).Errorf("During request the wrong content type was given.")
 			return
 		}
 		err := c.ShouldBindJSON(exKey)
 		if err != nil {
 			_ = c.AbortWithError(http.StatusBadRequest, err)
+			logrus.WithError(err).Errorf("Unsuccessfully binded into JSON.")
 			return
 		}
 		key, err := access.FromExAccessKey(*exKey)
 		if err != nil {
 			_ = c.AbortWithError(http.StatusBadRequest, err)
+			logrus.WithError(err).Errorf("Unsuccessfully accessed.")
 			return
 		}
 		err = a.AddKey(key)
 		if err != nil {
 			_ = c.AbortWithError(http.StatusBadRequest, err)
+			logrus.WithError(err).Errorf("Unsuccessfully accessed key.")
 			return
 		}
 		c.String(http.StatusOK, "access key was set")
@@ -191,15 +226,8 @@ func NewRouter(s *CompoundStore, a access.AccessStore) *gin.Engine {
 		}()
 		if err != nil {
 			if isInDebugMode {
-				_ = c.AbortWithError(http.StatusInternalServerError, err)
-			} else {
-				_ = c.AbortWithError(http.StatusForbidden, AccessForbiddenError())
-			}
-			return
-		}
-		if err != nil {
-			if isInDebugMode {
 				_ = c.AbortWithError(http.StatusInternalServerError, access.KeyDoesntExist(urlKey))
+				logrus.WithError(err).Errorf("Key doesn't of key exists.")
 			} else {
 				_ = c.AbortWithError(http.StatusForbidden, AccessForbiddenError())
 			}
@@ -217,6 +245,7 @@ func NewRouter(s *CompoundStore, a access.AccessStore) *gin.Engine {
 			if err != nil {
 				if isInDebugMode {
 					_ = c.AbortWithError(http.StatusBadRequest, errors.New("key in query could not be base64 decoded"))
+					logrus.WithError(err).Errorf("Decoding of key failed.")
 				} else {
 					_ = c.AbortWithError(http.StatusForbidden, AccessForbiddenError())
 				}
@@ -229,6 +258,7 @@ func NewRouter(s *CompoundStore, a access.AccessStore) *gin.Engine {
 			if err != nil {
 				if isInDebugMode {
 					_ = c.AbortWithError(http.StatusBadRequest, errors.New("key in header could not be base64 decoded"))
+					logrus.WithError(err).Errorf("Decoding of key failed.")
 				} else {
 					_ = c.AbortWithError(http.StatusForbidden, AccessForbiddenError())
 				}
@@ -239,6 +269,7 @@ func NewRouter(s *CompoundStore, a access.AccessStore) *gin.Engine {
 		if !keyValid {
 			if isInDebugMode {
 				_ = c.AbortWithError(http.StatusForbidden, errors.New("key is invalid"))
+				logrus.WithError(err).Errorf("Key is invalid.")
 			} else {
 				_ = c.AbortWithError(http.StatusForbidden, AccessForbiddenError())
 			}
@@ -264,6 +295,11 @@ func NewRouter(s *CompoundStore, a access.AccessStore) *gin.Engine {
 			"time":      timeString,
 			"Routes":    routesString,
 		})
+		rainbow.Rainbow("YoU hAvE fOuNd ThE tEaPoT!!!", 0)
+	})
+
+	router.GET("/ping", func(c *gin.Context) {
+		c.String(http.StatusOK, "Pong")
 	})
 
 	return router
