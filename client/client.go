@@ -1,10 +1,16 @@
 package client
 
 import (
+	"bytes"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"secure-store/access"
+	"time"
 )
 
 type SecureClient struct {
@@ -88,4 +94,59 @@ func (s *SecureClient) DeleteBucket(bucketId string) error {
 		return errors.New("unexpected server respond")
 	}
 	return nil
+}
+
+func (s *SecureClient) AddKey(ttl *time.Time, limit *uint64, validKeys [][]byte, resolveByUrlKey bool, bucketId, keyId, urlKey string) error {
+	exKey := &access.ExAccessKey{
+		Ttl:             ttl,
+		Limit:           limit,
+		ValidKeys:       validKeys,
+		ResolveByUrlKey: resolveByUrlKey,
+		BucketId:        bucketId,
+		KeyId:           keyId,
+		UrlKey:          urlKey,
+	}
+	complete := fmt.Sprintf("%v/api/add", s.addr)
+	jsonBytes, err := json.Marshal(exKey)
+	if err != nil {
+		return err
+	}
+	requestBody := bytes.NewBuffer(jsonBytes)
+	req, err := http.NewRequest(http.MethodPost, complete, requestBody)
+	req.Header.Add("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return errors.New("unexpected server respond")
+	}
+	return nil
+}
+
+func (s *SecureClient) DownloadFromKey(urlKey string, unlockKey []byte, inUrlKey bool) (io.Reader, int64, error) {
+	complete := ""
+	base64UnlockKey := base64.RawURLEncoding.EncodeToString(unlockKey)
+	if inUrlKey {
+		complete = fmt.Sprintf("%v/api/download?urlKey=%v&unlockKey=%v", s.addr, urlKey, base64UnlockKey)
+	} else {
+		complete = fmt.Sprintf("%v/api/download?urlKey=%v", s.addr, urlKey)
+	}
+	req, err := http.NewRequest(http.MethodGet, complete, nil)
+	if err != nil {
+		return nil, 0, err
+	}
+	if !inUrlKey {
+		req.Header.Add("unlockKey", base64UnlockKey)
+	}
+	client := http.DefaultClient
+	log.Println("Initialized client")
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, 0, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, 0, errors.New("unexpected server response")
+	}
+	return resp.Body, resp.ContentLength, nil
 }

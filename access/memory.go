@@ -46,11 +46,11 @@ func NewMemoryStore() *MemoryStore {
 }
 
 func (m *MemoryStore) AddKey(key *AKey) error {
-	_, ok := m.m.Load(key.urlKey)
+	_, ok := m.m.Load(key.UrlKey)
 	if ok {
-		return KeyAlreadyExists(key.urlKey)
+		return KeyAlreadyExists(key.UrlKey)
 	}
-	m.m.Store(key.urlKey, key)
+	m.m.Store(key.UrlKey, key)
 	if key.expires {
 		m.timeKiller <- key
 	}
@@ -84,7 +84,7 @@ func (m *MemoryStore) Access(ctx context.Context, urlKey string) (chan<- bool, *
 }
 
 func (m *MemoryStore) DeleteKey(key *AKey) error {
-	urlKey := key.urlKey
+	urlKey := key.UrlKey
 	_, ok := m.m.Load(urlKey)
 	if !ok {
 		return KeyDoesntExist(urlKey)

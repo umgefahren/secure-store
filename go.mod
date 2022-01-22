@@ -9,4 +9,5 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/manifoldco/promptui v0.9.0
 	github.com/ugorji/go/codec v1.2.6 // indirect
+	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a // indirect
 )

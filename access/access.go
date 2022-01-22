@@ -14,12 +14,12 @@ type AKey struct {
 	limited         bool
 	limit           uint64
 	usedTimes       *uint64
-	bucketId        string
-	keyId           string
-	urlKey          string
+	BucketId        string
+	KeyId           string
+	UrlKey          string
 	NeedsKey        bool
-	validKeys       *hashSet
-	resolveByUrlKey bool
+	validKeys       *HashSet
+	ResolveByUrlKey bool
 }
 
 type ExAccessKey struct {
@@ -63,12 +63,12 @@ type KeyOptions struct {
 	limited         bool
 	limit           uint64
 	needsKey        bool
-	validKeys       *hashSet
+	validKeys       *HashSet
 	resolveByUrlKey bool
 }
 
-func NewKeyOptions(ttl *time.Time, limit *uint64, validKeys *hashSet, resolveByUrlKey bool) (*KeyOptions, error) {
-	if time.Now().After(*ttl) {
+func NewKeyOptions(ttl *time.Time, limit *uint64, validKeys *HashSet, resolveByUrlKey bool) (*KeyOptions, error) {
+	if ttl != nil && time.Now().After(*ttl) {
 		return nil, TTLAlreadyExpired(ttl)
 	}
 	ret := new(KeyOptions)
@@ -95,12 +95,12 @@ func NewAccessKey(bucketId, keyId, urlKey string, options KeyOptions) *AKey {
 	ret.limited = options.limited
 	ret.limit = options.limit
 	ret.usedTimes = &zero
-	ret.bucketId = bucketId
-	ret.keyId = keyId
-	ret.urlKey = urlKey
+	ret.BucketId = bucketId
+	ret.KeyId = keyId
+	ret.UrlKey = urlKey
 	ret.NeedsKey = options.needsKey
 	ret.validKeys = options.validKeys
-	ret.resolveByUrlKey = options.resolveByUrlKey
+	ret.ResolveByUrlKey = options.resolveByUrlKey
 	return ret
 }
 
@@ -114,30 +114,30 @@ type byteArray [sha512.Size]byte
 
 type hashSetMap map[byteArray]*interface{}
 
-type hashSet struct {
+type HashSet struct {
 	set hashSetMap
 }
 
-func (m *hashSet) Insert(obj byteArray) {
+func (m *HashSet) Insert(obj byteArray) {
 	m.set[obj] = nil
 }
 
-func (m *hashSet) Contains(obj byteArray) bool {
+func (m *HashSet) Contains(obj byteArray) bool {
 	_, ok := m.set[obj]
 	return ok
 }
 
-func (m *hashSet) Delete(obj byteArray) {
+func (m *HashSet) Delete(obj byteArray) {
 	delete(m.set, obj)
 }
 
-func (m *hashSet) Size() int {
+func (m *HashSet) Size() int {
 	return len(m.set)
 }
 
-func newHashSet() *hashSet {
+func newHashSet() *HashSet {
 	set := make(hashSetMap)
-	ret := new(hashSet)
+	ret := new(HashSet)
 	ret.set = set
 	return ret
 }
@@ -152,4 +152,15 @@ func KeyDoesntExist(urlKey string) error {
 
 func TTLAlreadyExpired(ttl *time.Time) error {
 	return errors.New(fmt.Sprintf("TTL %v already expired %v ago", ttl, time.Now().Sub(*ttl)))
+}
+
+func (a *AKey) ValidKey(key []byte) (bool, error) {
+	if len(key) != sha512.Size {
+		return false, errors.New("one of the valid keys doesn't has the wrong length")
+	}
+	arr := [sha512.Size]byte{}
+	for i := range arr {
+		arr[i] = key[i]
+	}
+	return a.validKeys.Contains(arr), nil
 }
