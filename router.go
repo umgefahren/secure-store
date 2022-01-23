@@ -14,11 +14,13 @@ import (
 	"secure-store/access"
 	"secure-store/metadata"
 	"secure-store/security"
+	"secure-store/users"
 	"strings"
 	"time"
 )
 
 const UnlockKeyQuery = "unlockKey"
+const ApiKeyQuery = "apiKey"
 
 func AccessForbiddenError() error {
 	return errors.New("access forbidden")
@@ -44,7 +46,7 @@ func Download(ctx *gin.Context, s *CompoundStore, bucketId, keyId string) {
 	}).Infoln("Successfully downloaded.")
 }
 
-func NewRouter(s *CompoundStore, a access.AccessStore) *gin.Engine {
+func NewRouter(s *CompoundStore, a access.AccessStore, u users.UserStorage) *gin.Engine {
 	matcher := NewMatcher()
 
 	router := gin.New()
@@ -78,6 +80,26 @@ func NewRouter(s *CompoundStore, a access.AccessStore) *gin.Engine {
 	})
 
 	router.POST("/upload", func(c *gin.Context) {
+		apiKey := c.Query(ApiKeyQuery)
+		apiKeyBytes, err := base64.RawURLEncoding.DecodeString(apiKey)
+		if err != nil {
+			_ = c.AbortWithError(http.StatusBadRequest, err)
+			return
+		}
+		user, err := u.ResolveByApiKey(apiKeyBytes)
+		if err != nil {
+			_ = c.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+		verifiedKey := user.VerifyApiKey(apiKeyBytes)
+		if !verifiedKey {
+			_ = c.AbortWithError(http.StatusForbidden, AccessForbiddenError())
+			return
+		}
+		if !user.Role.CanUploadData {
+			_ = c.AbortWithError(http.StatusForbidden, AccessForbiddenError())
+			return
+		}
 		bucketId := c.Query("bucketId")
 		matchRes := matcher.MatchString(bucketId)
 		if !matchRes {
@@ -96,7 +118,7 @@ func NewRouter(s *CompoundStore, a access.AccessStore) *gin.Engine {
 		bufferedReader := bufio.NewReader(r)
 		meta := metadata.NewMetadata(contentLength, filename)
 		key := security.NewEncryptionKey()
-		err := s.Write(bucketId, keyId, meta, key, bufferedReader)
+		err = s.Write(bucketId, keyId, meta, key, bufferedReader)
 		if err != nil {
 			_ = c.AbortWithError(http.StatusInternalServerError, err)
 			logrus.WithError(err).Errorf("Error while writing data into storage.")
@@ -176,6 +198,26 @@ func NewRouter(s *CompoundStore, a access.AccessStore) *gin.Engine {
 	})
 
 	router.POST("/api/add", func(c *gin.Context) {
+		apiKey := c.Query(ApiKeyQuery)
+		apiKeyBytes, err := base64.RawURLEncoding.DecodeString(apiKey)
+		if err != nil {
+			_ = c.AbortWithError(http.StatusBadRequest, err)
+			return
+		}
+		user, err := u.ResolveByApiKey(apiKeyBytes)
+		if err != nil {
+			_ = c.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+		verifiedKey := user.VerifyApiKey(apiKeyBytes)
+		if !verifiedKey {
+			_ = c.AbortWithError(http.StatusForbidden, AccessForbiddenError())
+			return
+		}
+		if !user.Role.CanAddKeys {
+			_ = c.AbortWithError(http.StatusForbidden, AccessForbiddenError())
+			return
+		}
 		exKey := &access.ExAccessKey{}
 		contentType := c.Request.Header.Get("Content-Type")
 		if contentType != "application/json" {
@@ -183,7 +225,7 @@ func NewRouter(s *CompoundStore, a access.AccessStore) *gin.Engine {
 			logrus.WithError(errors.New("wrong content type given")).Errorf("During request the wrong content type was given.")
 			return
 		}
-		err := c.ShouldBindJSON(exKey)
+		err = c.ShouldBindJSON(exKey)
 		if err != nil {
 			_ = c.AbortWithError(http.StatusBadRequest, err)
 			logrus.WithError(err).Errorf("Unsuccessfully binded into JSON.")
@@ -278,6 +320,52 @@ func NewRouter(s *CompoundStore, a access.AccessStore) *gin.Engine {
 		bucketId, keyId := key.BucketId, key.KeyId
 		Download(c, s, bucketId, keyId)
 		backMessage = true
+	})
+
+	router.POST("/api/user/create", func(c *gin.Context) {
+		apiKey := c.Query(ApiKeyQuery)
+		apiKeyBytes, err := base64.RawURLEncoding.DecodeString(apiKey)
+		if err != nil {
+			_ = c.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+		rootUser, err := u.ResolveByApiKey(apiKeyBytes)
+		if err != nil {
+			_ = c.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+		if !rootUser.Role.CanCreateUsers || !rootUser.Role.RootUser {
+			_ = c.AbortWithError(http.StatusForbidden, AccessForbiddenError())
+		}
+		userJson := &users.UserJson{}
+		contentType := c.Request.Header.Get("Content-Type")
+		if contentType != "application/json" {
+			_ = c.AbortWithError(http.StatusBadRequest, errors.New("wrong content type given"))
+			logrus.WithError(errors.New("wrong content type given")).Errorf("During request the wrong content type was given.")
+			return
+		}
+		err = c.ShouldBindJSON(userJson)
+		if err != nil {
+			_ = c.AbortWithError(http.StatusBadRequest, err)
+			return
+		}
+		err = userJson.IsValid()
+		if err != nil {
+			_ = c.AbortWithError(http.StatusBadRequest, err)
+			return
+		}
+		user, err := users.UserFromUserJson(userJson)
+		if err != nil {
+			_ = c.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+		err = u.Create(user)
+		if err != nil {
+			_ = c.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+		exUser := users.UserSafeJsonFromUser(user)
+		c.SecureJSON(http.StatusOK, exUser)
 	})
 
 	router.GET("/teapot", func(c *gin.Context) {

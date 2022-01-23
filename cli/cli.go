@@ -6,19 +6,23 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/cheggaaa/pb/v3"
+	"github.com/google/uuid"
 	"github.com/manifoldco/promptui"
 	"golang.org/x/crypto/argon2"
 	"io"
 	"log"
 	"os"
 	"secure-store/client"
+	"secure-store/users"
 	"strings"
 	"time"
 )
 
+var RootApiKey = []byte("root-api-key")
+
 func main() {
 	c := client.NewClient("http://localhost:8080")
-	items := []string{"Create Bucket", "Read", "Write", "Delete", "DeleteBucket", "Add Key", "Download From Key", "Exit"}
+	items := []string{"Create Bucket", "Read", "Write", "Delete", "DeleteBucket", "Add Key", "Download From Key", "Add User", "Exit"}
 	for {
 		prompt := promptui.Select{
 			Label:             "Select operation",
@@ -30,15 +34,15 @@ func main() {
 			},
 			Items: items,
 		}
-		op, _, err := prompt.Run()
+		op, opString, err := prompt.Run()
 		if err != nil {
 			log.Fatal(err)
 		}
-		if op == 7 {
+		if opString == "Exit" {
 			break
 		}
 		bucket := ""
-		if op != 6 {
+		if op != 6 && op != 7 {
 			bucket = AskForBucketId()
 		}
 		switch op {
@@ -91,8 +95,9 @@ func main() {
 				length := stat.Size()
 				bar := pb.Full.Start64(length)
 				barReader := bar.NewProxyReader(file)
-
-				err = c.Upload(bucket, key, barReader, name)
+				apiKey := []byte("api-key-key")
+				apiKeyHash := sha512.Sum512(apiKey)
+				err = c.Upload(bucket, key, barReader, name, apiKeyHash[:])
 				if err != nil {
 					log.Println(err)
 					continue
@@ -114,7 +119,9 @@ func main() {
 				}
 				key := AskForKeyId()
 				contentReader := strings.NewReader(content)
-				err = c.Upload(bucket, key, contentReader, filename)
+				apiKey := []byte("api-key-key")
+				apiKeyHash := sha512.Sum512(apiKey)
+				err = c.Upload(bucket, key, contentReader, filename, apiKeyHash[:])
 				if err != nil {
 					log.Println(err)
 					continue
@@ -145,7 +152,9 @@ func main() {
 					validKeys = append(validKeys, password)
 				}
 			}
-			err = c.AddKey(ttl, limit, validKeys, true, bucket, key, urlKey)
+			apiKey := []byte("api-key-key")
+			apiKeyHash := sha512.Sum512(apiKey)
+			err = c.AddKey(ttl, limit, validKeys, true, bucket, key, urlKey, apiKeyHash[:])
 			if err != nil {
 				log.Println(err)
 				continue
@@ -167,6 +176,39 @@ func main() {
 			}
 			log.Println("Downloading")
 			DownloadInteraction(data, length)
+		case 7:
+			log.Println("Adding user")
+			id := uuid.New()
+			idString := id.String()
+			name := AskForName()
+			username := AskForUsername()
+			password, err := GetPassword()
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			apiKey := []byte("api-key-key")
+			apiKeyHash := sha512.Sum512(apiKey)
+			log.Printf("Api Key hash %v", hex.EncodeToString(apiKeyHash[:]))
+			userJson := users.UserJson{
+				Id:   idString,
+				Name: name,
+				Role: users.Role{
+					RootUser:       true,
+					CanCreateUsers: true,
+					CanAddKeys:     true,
+					CanUploadData:  true,
+					CanDeleteKeys:  true,
+				},
+				Username:     username,
+				PasswordHash: password,
+				ApiKey:       apiKeyHash[:],
+			}
+			err = c.AddUser(&userJson, RootApiKey)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
 		default:
 			continue
 		}
@@ -214,6 +256,28 @@ func AskIfPassword() bool {
 		panic(err)
 	}
 	return out == "Yes"
+}
+
+func AskForName() string {
+	prompt := promptui.Prompt{
+		Label: "Name",
+	}
+	res, err := prompt.Run()
+	if err != nil {
+		panic(err)
+	}
+	return res
+}
+
+func AskForUsername() string {
+	prompt := promptui.Prompt{
+		Label: "Username",
+	}
+	res, err := prompt.Run()
+	if err != nil {
+		panic(err)
+	}
+	return res
 }
 
 func DownloadInteraction(data io.Reader, length int64) bool {

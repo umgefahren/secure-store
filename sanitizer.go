@@ -8,6 +8,8 @@ import (
 
 const regexExp = `^[a-z]+([-][a-z0-9]+)*[a-z]+$`
 
+// const uuidExp = `\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b`
+
 type Matcher struct {
 	reg *regexp.Regexp
 }

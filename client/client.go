@@ -10,9 +10,12 @@ import (
 	"log"
 	"net/http"
 	"secure-store/access"
+	"secure-store/users"
 	"strings"
 	"time"
 )
+
+const ApiKeyQuery = "apiKey"
 
 type SecureClient struct {
 	addr string
@@ -56,8 +59,9 @@ func (s *SecureClient) Ping() error {
 	return nil
 }
 
-func (s *SecureClient) Upload(bucketId, keyId string, data io.Reader, filename string) error {
-	complete := fmt.Sprintf("%v/upload?bucketId=%v&keyId=%v", s.addr, bucketId, keyId)
+func (s *SecureClient) Upload(bucketId, keyId string, data io.Reader, filename string, apiKey []byte) error {
+	apiKeyString := base64.RawURLEncoding.EncodeToString(apiKey)
+	complete := fmt.Sprintf("%v/upload?bucketId=%v&keyId=%v&%v=%v", s.addr, bucketId, keyId, ApiKeyQuery, apiKeyString)
 	req, err := http.NewRequest(http.MethodPost, complete, data)
 	if err != nil {
 		return err
@@ -117,7 +121,7 @@ func (s *SecureClient) DeleteBucket(bucketId string) error {
 	return nil
 }
 
-func (s *SecureClient) AddKey(ttl *time.Time, limit *uint64, validKeys [][]byte, resolveByUrlKey bool, bucketId, keyId, urlKey string) error {
+func (s *SecureClient) AddKey(ttl *time.Time, limit *uint64, validKeys [][]byte, resolveByUrlKey bool, bucketId, keyId, urlKey string, apiKey []byte) error {
 	exKey := &access.ExAccessKey{
 		Ttl:             ttl,
 		Limit:           limit,
@@ -127,7 +131,7 @@ func (s *SecureClient) AddKey(ttl *time.Time, limit *uint64, validKeys [][]byte,
 		KeyId:           keyId,
 		UrlKey:          urlKey,
 	}
-	complete := fmt.Sprintf("%v/api/add", s.addr)
+	complete := fmt.Sprintf("%v/api/add?%v=%v", s.addr, ApiKeyQuery, base64.RawURLEncoding.EncodeToString(apiKey))
 	jsonBytes, err := json.Marshal(exKey)
 	if err != nil {
 		return err
@@ -170,4 +174,21 @@ func (s *SecureClient) DownloadFromKey(urlKey string, unlockKey []byte, inUrlKey
 		return nil, 0, errors.New("unexpected server response")
 	}
 	return resp.Body, resp.ContentLength, nil
+}
+
+func (s *SecureClient) AddUser(userJson *users.UserJson, apiKey []byte) error {
+	encodedKey := base64.RawURLEncoding.EncodeToString(apiKey)
+	complete := fmt.Sprintf("%v/api/user/create?%v=%v", s.addr, ApiKeyQuery, encodedKey)
+	jsonStream, err := json.Marshal(userJson)
+	if err != nil {
+		return err
+	}
+	resp, err := http.Post(complete, "application/json", bytes.NewReader(jsonStream))
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return errors.New("unexpected server response")
+	}
+	return nil
 }
