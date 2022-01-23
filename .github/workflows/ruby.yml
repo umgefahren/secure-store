@@ -25,5 +25,5 @@ jobs:
         ruby-version: ${{ matrix.ruby }}
         bundler-cache: true
     - name: Run the default task
-      run: bundle exec rake
+      run: gem install rake && bundle exec rake
       working-directory: clients/ruby/
