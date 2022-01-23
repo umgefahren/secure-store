@@ -132,7 +132,9 @@ func NewSQLStore(genericDb gorm.Dialector) (*SQLStore, error) {
 
 func (s *SQLStore) AddKey(key *AKey) error {
 	s.m.Lock()
-	defer s.m.Unlock()
+	defer func() {
+		s.m.Unlock()
+	}()
 	var dbakey DBAKey
 	result := s.db.First(&dbakey, "url_key = ?", key.UrlKey)
 	log.Println(result.Error)
@@ -154,7 +156,9 @@ func (s *SQLStore) AddKey(key *AKey) error {
 
 func (s *SQLStore) Access(ctx context.Context, urlKey string) (chan<- bool, *AKey, error) {
 	s.m.Lock()
-	defer s.m.Unlock()
+	defer func() {
+		s.m.Unlock()
+	}()
 	var dbaKey DBAKey
 	result := s.db.First(&dbaKey, "url_key = ?", urlKey)
 	if result.RowsAffected == 0 {
@@ -167,6 +171,10 @@ func (s *SQLStore) Access(ctx context.Context, urlKey string) (chan<- bool, *AKe
 		case <-ctx.Done():
 			return
 		case resp := <-backChan:
+			s.m.Lock()
+			defer func() {
+				s.m.Unlock()
+			}()
 			var dbKey DBAKey
 			s.db.First(&dbKey, id)
 			if resp {
@@ -183,7 +191,9 @@ func (s *SQLStore) Access(ctx context.Context, urlKey string) (chan<- bool, *AKe
 
 func (s *SQLStore) DeleteKey(key *AKey) error {
 	s.m.Lock()
-	defer s.m.Unlock()
+	defer func() {
+		s.m.Unlock()
+	}()
 	var dbaKey DBAKey
 	result := s.db.Where("url_key = ?", key.UrlKey).Delete(&dbaKey)
 	if result.Error != nil {
