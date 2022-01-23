@@ -12,6 +12,7 @@ require (
 	github.com/manifoldco/promptui v0.9.0
 	github.com/mattn/go-sqlite3 v1.14.10 // indirect
 	github.com/sirupsen/logrus v1.8.1
+	github.com/ugorji/go/codec v1.2.6 // indirect
 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
 	google.golang.org/protobuf v1.27.1
 	gorm.io/driver/sqlite v1.2.6

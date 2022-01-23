@@ -1,13 +1,14 @@
-FROM golang:latest AS builder
+FROM gcc:11 AS builder
 WORKDIR /go/src/app
 COPY . .
 
-# RUN apt-get update
-# RUN apt-get install -y build-essential libsqlite3-dev
-RUN ./build.sh
+RUN go get -d ./...
+RUN go build -tags codec.safe
+# RUN go build
 
-FROM ubuntu:latest
-LABEL org.opencontainers.image.description = "# Secure Store \n Secure store docker container."
+
+FROM ubuntu:focal
+
 COPY --from=builder /go/src/app/secure-store /usr/local/bin/secure-store
 ENV GIN_MODE=release
 EXPOSE 8080

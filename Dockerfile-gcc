@@ -3,8 +3,8 @@ WORKDIR /go/src/app
 COPY . .
 
 RUN go get -d ./...
-# RUN go build -tags codec.safe
-RUN go build
+RUN go build -tags codec.safe
+# RUN go build
 
 
 FROM ubuntu:focal
