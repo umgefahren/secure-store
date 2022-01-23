@@ -1,11 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/gin-gonic/autotls"
+	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"gorm.io/driver/sqlite"
 	"log"
 	"os"
 	"secure-store/access"
@@ -45,8 +46,12 @@ func main() {
 		security: sec,
 		storage:  s,
 	}
-	db := sqlite.Open("test.db")
-	a, err := access.NewSQLStore(db)
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     "0.0.0.0:6379",
+		Password: "",
+		DB:       0,
+	})
+	a, err := access.NewRedisStore(context.TODO(), redisClient)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -54,7 +59,7 @@ func main() {
 
 	domainsString := os.Getenv("DOMAINS")
 	if domainsString == "" {
-		log.Fatal(r.Run(fmt.Sprintf("0.0.0.0:%v", port)))
+		logrus.Fatal(r.Run(fmt.Sprintf("0.0.0.0:%v", port)))
 	} else {
 		domains := strings.Split(domainsString, ",")
 		domainsFiltered := make([]string, 0)
@@ -63,6 +68,6 @@ func main() {
 				domainsFiltered = append(domainsFiltered, d)
 			}
 		}
-		log.Fatal(autotls.Run(r, domainsFiltered...))
+		logrus.Fatal(autotls.Run(r, domainsFiltered...))
 	}
 }

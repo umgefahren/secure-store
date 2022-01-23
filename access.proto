@@ -1,0 +1,20 @@
+syntax = "proto3";
+package access;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "./access";
+
+message ProtoAKey {
+  bool expires = 1;
+  google.protobuf.Timestamp ttl = 2;
+  bool limited = 3;
+  uint64 limit = 4;
+  uint64  usedTimes = 5;
+  string bucketId = 6;
+  string keyId = 7;
+  string urlKey = 8;
+  bool needsKey = 9;
+  repeated bytes validKeys = 10;
+  bool resolveByUrlKey = 11;
+}
