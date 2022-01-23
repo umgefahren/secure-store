@@ -6,10 +6,12 @@ import (
 	"errors"
 	"gorm.io/gorm"
 	"log"
+	"sync"
 	"time"
 )
 
 type SQLStore struct {
+	m          sync.Mutex
 	db         *gorm.DB
 	killer     chan<- *AKey
 	timeKiller chan<- *AKey
@@ -129,6 +131,8 @@ func NewSQLStore(genericDb gorm.Dialector) (*SQLStore, error) {
 }
 
 func (s *SQLStore) AddKey(key *AKey) error {
+	s.m.Lock()
+	defer s.m.Unlock()
 	var dbakey DBAKey
 	result := s.db.First(&dbakey, "url_key = ?", key.UrlKey)
 	log.Println(result.Error)
@@ -149,6 +153,8 @@ func (s *SQLStore) AddKey(key *AKey) error {
 }
 
 func (s *SQLStore) Access(ctx context.Context, urlKey string) (chan<- bool, *AKey, error) {
+	s.m.Lock()
+	defer s.m.Unlock()
 	var dbaKey DBAKey
 	result := s.db.First(&dbaKey, "url_key = ?", urlKey)
 	if result.RowsAffected == 0 {
@@ -176,8 +182,10 @@ func (s *SQLStore) Access(ctx context.Context, urlKey string) (chan<- bool, *AKe
 }
 
 func (s *SQLStore) DeleteKey(key *AKey) error {
+	s.m.Lock()
+	defer s.m.Unlock()
 	var dbaKey DBAKey
-	result := s.db.Where("url_key = ?", key.UrlKey).Delete(dbaKey)
+	result := s.db.Where("url_key = ?", key.UrlKey).Delete(&dbaKey)
 	if result.Error != nil {
 		return result.Error
 	}
