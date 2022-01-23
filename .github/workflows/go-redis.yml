@@ -22,8 +22,11 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v2
 
+      - name: Get Dependencies
+        run: go get -d ./...
+
       - name: Build
-        run: go build -v ./...
+        run: go build
 
       - name: Test
         run: go test -v ./...
