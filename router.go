@@ -386,6 +386,12 @@ func NewRouter(s *CompoundStore, a access.AccessStore, u users.UserStorage) *gin
 		rainbow.Rainbow("YoU hAvE fOuNd ThE tEaPoT!!!", 0)
 	})
 
+	router.GET("/", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "index.tmpl", gin.H{})
+	})
+
+	router.StaticFile("/favicon.ico", "./static/favicon.ico")
+
 	router.GET("/ping", func(c *gin.Context) {
 		c.String(http.StatusOK, "Pong")
 	})
