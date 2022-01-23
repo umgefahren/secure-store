@@ -1,1 +1,10 @@
 .idea
+clients/ruby/.bundle/
+clients/ruby/.yardoc
+clients/ruby/_yardoc/
+clients/ruby/coverage/
+clients/ruby/doc/
+clients/ruby/pkg/
+clients/ruby/spec/reports/
+clients/ruby/tmp
+clients/ruby/.rspec_status
