@@ -184,7 +184,6 @@ func main() {
 			username := AskForUsername()
 			password, err := GetPassword()
 			if err != nil {
-				log.Println(err)
 				continue
 			}
 			apiKey := []byte("api-key-key")
