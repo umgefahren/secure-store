@@ -14,7 +14,7 @@ require (
 	github.com/sirupsen/logrus v1.8.1
 	github.com/ugorji/go v1.2.6 // indirect
 	golang.org/x/crypto v0.5.0
-	google.golang.org/protobuf v1.28.1
+	google.golang.org/protobuf v1.33.0
 	gorm.io/driver/sqlite v1.2.6
 	gorm.io/gorm v1.22.5
 )
