@@ -11,7 +11,7 @@ require (
 	github.com/guineveresaenger/golang-rainbow v0.0.0-20171201190047-7b6c54e09b61
 	github.com/manifoldco/promptui v0.9.0
 	github.com/mattn/go-sqlite3 v1.14.10 // indirect
-	github.com/sirupsen/logrus v1.8.1
+	github.com/sirupsen/logrus v1.8.3
 	github.com/ugorji/go v1.2.6 // indirect
 	golang.org/x/crypto v0.5.0
 	google.golang.org/protobuf v1.28.1
